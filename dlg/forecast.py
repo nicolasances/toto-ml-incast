@@ -4,6 +4,7 @@ from totoapicontroller.model.UserContext import UserContext
 from totoapicontroller.model.ExecutionContext import ExecutionContext
 from api.expenses import ExpensesAPI
 from config.config import Config
+from models.incast import IncastModel
 
 @toto_delegate(config_class=Config)
 def forecast_incomes(request: Request, user_context: UserContext, exec_context: ExecutionContext): 
