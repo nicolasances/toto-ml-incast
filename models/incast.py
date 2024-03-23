@@ -70,6 +70,11 @@ class IncastModel:
         # 3. Get the model
         loaded_model = Config().get_model(self.user_context.email)
         
+        # If no model has been trained yet, return the last salary
+        if loaded_model is None: 
+            self.logger.log(self.cid, f"No trained model found for user [{self.user_context.email}]")
+            return {"prediction": salaries_ts["amount"].values[-1]}
+        
         predictions = loaded_model.model.predict(X).flatten()
         
         self.logger.log(self.cid, f"Prediction: {predictions}")
