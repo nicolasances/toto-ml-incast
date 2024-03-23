@@ -65,14 +65,14 @@ class ExpensesAPI:
         self.exec_context = exec_context
         self.auth_header = auth_header
         
-    def get_incomes(self) -> GetIncomesResponse: 
+    def get_salaries(self, depth: int = 0) -> GetIncomesResponse: 
         """Retrieves the list of incomes of the specified user
         
         Returns:
             GetIncomesResponse: the response of the service
         """
         response = requests.get(
-            f"{self.endpoint}/incomes", 
+            f"{self.endpoint}/incomes?category=SALARY&last={depth}", 
             headers={
                 "Accept": "application/json", 
                 "Authorization": self.auth_header, 

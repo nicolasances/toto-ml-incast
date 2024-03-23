@@ -12,6 +12,7 @@ from totoapicontroller.model.ExecutionContext import ExecutionContext
 from totoapicontroller.model.UserContext import UserContext
 from totoapicontroller.TotoLogger import TotoLogger
 from api.expenses import ExpensesAPI
+from config.config import Config
 from store.store import ModelStore
 
 class IncastModel: 
@@ -26,6 +27,55 @@ class IncastModel:
         self.logger = exec_context.logger
         self.cid = exec_context.cid
         self.user_context = user_context;
+        
+        # Model Core Parameters
+        self.depth = 5
+        
+    def predict(self, auth_header: str): 
+        """Predicts the next salary based on the historical time series for the user specified in the auth header
+        """
+        self.logger.log(self.cid, f"Predicting next salary for user [{self.user_context.email}].")
+        
+        # 1. Download the past incomes
+        response = ExpensesAPI(exec_context=self.exec_context, auth_header=auth_header).get_salaries(depth=self.depth)
+            
+        # If there are no incomes, return null
+        if response is None or response.incomes is None or len(response.incomes) == 0:
+            return {"prediction": 0}
+        
+        salaries_raw = response.incomes
+        
+        # Check that there is enough salary information for the prediction
+        if len(salaries_raw) < self.depth: 
+            return {"prediction": 0}
+        
+        # 2. Prepare the data
+        salaries = pd.DataFrame([vars(income) for income in salaries_raw])
+        salaries = salaries.drop(columns=["currency", "description", "category"])
+        salaries['parsed_date'] = pd.to_datetime(salaries['date'], format='%Y%m%d')
+        
+        salaries_ts = salaries[["parsed_date", "amount"]].set_index("parsed_date").sort_index()
+        
+        # ses = SimpleExpSmoothing(salaries_ts["amount"])
+        # fitted_ses = ses.fit(smoothing_level=0.05, optimized=False)
+        # smoothed_data = fitted_ses.fittedvalues
+        
+        # salaries_ts['smoothed_amount'] = smoothed_data
+        
+        # Convert the dataframe into an array
+        X = np.array(salaries_ts['amount'].values).reshape((1, self.depth))
+        
+        self.logger.log(self.cid, f"Ready to predict. Model input is {X}")
+        
+        # 3. Get the model
+        loaded_model = Config().get_model(self.user_context.email)
+        
+        predictions = loaded_model.model.predict(X).flatten()
+        
+        self.logger.log(self.cid, f"Prediction: {predictions}")
+        
+        return {"prediction": predictions[0]}
+        
     
     def train(self, auth_header: str): 
         """Train the Incast Model
@@ -41,10 +91,10 @@ class IncastModel:
         
         # 0. Define key parameters
         # T is the number of samples of the time series that are needed for training. T = 5 means that the model will be trained to consider the previous 5 salaries to predict the income of the 6th month.
-        T = 5
+        T = self.depth
         
         # 1. Download the data
-        response = ExpensesAPI(exec_context=self.exec_context, auth_header=auth_header).get_incomes()
+        response = ExpensesAPI(exec_context=self.exec_context, auth_header=auth_header).get_salaries()
             
         # If there are no incomes, return null
         if response is None or response.incomes is None or len(response.incomes) == 0:

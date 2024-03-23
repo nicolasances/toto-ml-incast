@@ -20,3 +20,15 @@ class Config(TotoConfig):
         
     def get_api_name(self) -> str:
         return "toto-ml-incast"
+    
+    def get_model(self, user: str) -> LoadedModel: 
+        """Return the trained model (if any) for the specified user
+
+        Args:
+            user (str): the email of the user
+
+        """
+        for model in self.loaded_models: 
+            if model.user == user: 
+                return model
+            
